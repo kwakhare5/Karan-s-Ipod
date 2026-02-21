@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dsznajder.es7-react-js-snippets",
+        "usernamehw.errorlens",
+        "editorconfig.editorconfig",
+        "bradlc.vscode-tailwindcss"
+    ]
+}

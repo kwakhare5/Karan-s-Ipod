@@ -1,0 +1,1 @@
+Always monitor the terminal output. If a Playwright test fails or a Lint error appears after a file save, automatically analyze the error, suggest a fix, and ask for permission to apply it. Do not wait for me to explain the error.

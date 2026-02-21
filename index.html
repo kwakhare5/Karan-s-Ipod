@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Karan's iPod</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f3f4f6;
+        overflow: hidden;
+        /* Prevent body scroll, handled by iPod */
+        touch-action: none;
+        /* Prevent browser gestures interfering with wheel */
+      }
+
+      /* Custom scrollbar for menus to look like OS scrollbars slightly */
+      .ipod-scrollbar::-webkit-scrollbar {
+        width: 4px;
+        background-color: transparent;
+      }
+
+      .ipod-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .ipod-scrollbar::-webkit-scrollbar-thumb {
+        background: #cccccc;
+        border-radius: 2px;
+        min-height: 30px;
+      }
+
+      /* Inner dark line for the thumb to give 3D effect */
+      .ipod-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #b3b3b3;
+      }
+
+      /* Gloss reflection utility */
+      .gloss-reflection {
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.15) 0%,
+          rgba(255, 255, 255, 0.05) 50%,
+          rgba(255, 255, 255, 0) 50%,
+          rgba(255, 255, 255, 0) 100%
+        );
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+          "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+          "react/": "https://esm.sh/react@^19.2.4/",
+          "react": "https://esm.sh/react@^19.2.4",
+          "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+        }
+      }
+    </script>
+  </head>
+
+  <body class="h-screen w-screen flex items-center justify-center select-none">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
