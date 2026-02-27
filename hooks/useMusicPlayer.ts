@@ -176,6 +176,10 @@ export const useMusicPlayer = () => {
 
       switch (event.data) {
         case YT_STATE.PLAYING:
+          // Force volume update whenever playback starts to ensure consistency across devices
+          if (ytPlayerRef.current) {
+            ytPlayerRef.current.setVolume(state.volume * 100);
+          }
           setState((prev) => ({
             ...prev,
             isPlaying: true,
@@ -185,21 +189,24 @@ export const useMusicPlayer = () => {
           }));
           break;
         case YT_STATE.PAUSED:
-          setState((prev) => ({ ...prev, isPlaying: false }));
+          setState((prev) => ({ ...prev, isPlaying: false, isLoading: false }));
           break;
         case YT_STATE.ENDED:
           handleTrackEnd();
           break;
         case YT_STATE.BUFFERING:
-          setState((prev) => ({ ...prev, isLoading: true }));
+          // Only show loading if we're not explicitly in a play/pause transition
+          setState((prev) => ({
+            ...prev,
+            isLoading: prev.currentTrack ? prev.isLoading : true,
+          }));
           break;
         case YT_STATE.UNSTARTED:
         case YT_STATE.CUED:
-          // Do nothing specific, wait for playing/buffering
           break;
       }
     },
-    [handleTrackEnd]
+    [handleTrackEnd, state.volume]
   );
 
   const onPlayerError = useCallback((event: YTPlayerEvent) => {

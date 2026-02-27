@@ -238,7 +238,8 @@ export const NowPlayingScreen: React.FC<NowPlayingScreenProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  zIndex: 10, // Bring spinner above the image
+                  zIndex: 10,
+                  animation: 'fadeIn 0.5s ease-in-out', // Subtle fade to prevent flash
                 }}
               >
                 <Loader2 size={32} color="#fff" className="animate-spin" />

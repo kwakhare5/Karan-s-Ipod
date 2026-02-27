@@ -33,12 +33,18 @@ const BootScreen = () => (
 const App = () => {
   const calculateScale = () => {
     if (typeof window === 'undefined') return 0.75;
-    const padding = window.innerWidth < 768 ? 8 : 32;
-    const wRatio = (window.innerWidth - padding) / 358;
-    const hRatio = (window.innerHeight - padding) / 700;
     const isMobile = window.innerWidth < 768;
-    const maxScale = isMobile ? 0.9 : 1.2;
-    const minScale = 0.5;
+    const padding = isMobile ? 16 : 48; // Increased padding for safer margins
+
+    // Use visualViewport if available for more accurate mobile dimensions (accounts for keyboard/bars)
+    const viewWidth = window.visualViewport?.width || window.innerWidth;
+    const viewHeight = window.visualViewport?.height || window.innerHeight;
+
+    const wRatio = (viewWidth - padding) / 358;
+    const hRatio = (viewHeight - padding) / 700;
+
+    const maxScale = isMobile ? 0.95 : 1.2;
+    const minScale = 0.3; // Allow scaling down further if needed on very small devices
     return Math.max(minScale, Math.min(maxScale, wRatio, hRatio));
   };
 
@@ -891,7 +897,9 @@ const App = () => {
       const m = musicRef.current;
       if (navState.currentMenuId === MenuIDs.NOW_PLAYING && m.currentTrack) {
         const step = 0.05;
-        m.setVolume(m.volume + (direction === 'cw' ? step : -step));
+        // Round to nearest 0.05 to prevent floating point drift
+        const newVol = Math.round((m.volume + (direction === 'cw' ? step : -step)) * 20) / 20;
+        m.setVolume(newVol);
       } else {
         scroll(direction, currentMenuItems.length);
       }
@@ -1219,7 +1227,7 @@ const App = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
+    <div className="flex items-center justify-center min-h-dvh w-full p-4 overflow-hidden">
       <div style={{ width: 358 * scale, height: 700 * scale, position: 'relative', flexShrink: 0 }}>
         <div
           className="relative bg-[#e3e3e3] rounded-[30px] shadow-2xl overflow-hidden border-4 border-[#d1d1d1]"

@@ -18,19 +18,29 @@
   --apple-blue: #007aff;
   --apple-gray-separator: #e5e5e5;
 
-  color-scheme: light dark;
-  background-color: #1a1a1a;
-
   font-synthesis: none;
   letter-spacing: -0.01em;
 }
 
+html,
 body {
+  height: 100%;
+  width: 100%;
   margin: 0;
+  padding: 0;
+  overflow: hidden;
   display: flex;
   place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  justify-content: center;
+  overscroll-behavior: none; /* Prevent pull-to-refresh and bounce on mobile */
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Custom iPod Scrollbar */
