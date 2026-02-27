@@ -16,43 +16,48 @@ This guide covers the complete deployment process for Karan's iPod.
 ## 🚀 Part 1: Deploy Backend to Render
 
 ### Step 1: Go to Render Dashboard
+
 1. Visit [https://render.com](https://render.com)
 2. Sign in with GitHub
 3. Click **"New +"** → **"Web Service"**
 
 ### Step 2: Connect Repository
+
 - Select your repository: `kwakhare5/Karan-s-iPod`
 - Render will auto-detect the `render.yaml` configuration
 
 ### Step 3: Configure Service Settings
 
-| Setting | Value |
-|---------|-------|
-| **Name** | `karan-ipod-backend` |
-| **Region** | Oregon (closest to you) |
-| **Branch** | `main` |
-| **Root Directory** | (leave blank) |
-| **Runtime** | `Python 3` |
-| **Build Command** | (from render.yaml) |
-| **Start Command** | `python server.py` |
-| **Instance Type** | `Free` |
+| Setting            | Value                   |
+| ------------------ | ----------------------- |
+| **Name**           | `karan-ipod-backend`    |
+| **Region**         | Oregon (closest to you) |
+| **Branch**         | `main`                  |
+| **Root Directory** | (leave blank)           |
+| **Runtime**        | `Python 3`              |
+| **Build Command**  | (from render.yaml)      |
+| **Start Command**  | `python server.py`      |
+| **Instance Type**  | `Free`                  |
 
 ### Step 4: Add Environment Variables
 
 Click **"Advanced"** and add:
 
-| Key | Value | Required |
-|-----|-------|----------|
-| `PORT` | `10000` | ✅ |
-| `CORS_ORIGINS` | `*` | ✅ |
+| Key            | Value   | Required |
+| -------------- | ------- | -------- |
+| `PORT`         | `10000` | ✅       |
+| `CORS_ORIGINS` | `*`     | ✅       |
 
 ### Step 5: Create and Deploy
+
 - Click **"Create Web Service"**
 - Wait 5-10 minutes for build and deployment
 - Copy your backend URL (e.g., `https://karan-ipod-backend.onrender.com`)
 
 ### Step 6: Test Backend
+
 Visit these URLs in your browser:
+
 - `https://your-backend.onrender.com/top_songs.json` → Should show JSON
 - `https://your-backend.onrender.com/api/library/songs` → Should show songs
 - `https://your-backend.onrender.com/api/search?q=love` → Should return search results
@@ -62,11 +67,13 @@ Visit these URLs in your browser:
 ## 🎨 Part 2: Deploy Frontend to Vercel
 
 ### Step 1: Go to Vercel Dashboard
+
 1. Visit [https://vercel.com](https://vercel.com)
 2. Sign in with GitHub
 3. Click **"Add New..."** → **"Project"**
 
 ### Step 2: Import Repository
+
 - Select: `kwakhare5/Karan-s-iPod`
 - Vercel will auto-detect Vite configuration
 
@@ -84,18 +91,20 @@ Visit these URLs in your browser:
 
 Click **"Environment Variables"** and add:
 
-| Key | Value | Scope |
-|-----|-------|-------|
+| Key                | Value                               | Scope         |
+| ------------------ | ----------------------------------- | ------------- |
 | `VITE_BACKEND_URL` | `https://your-backend.onrender.com` | Production ✅ |
 
 ⚠️ **Important**: Replace `your-backend.onrender.com` with your actual Render backend URL!
 
 ### Step 5: Deploy
+
 - Click **"Deploy"**
 - Wait 2-3 minutes for build
 - Copy your frontend URL (e.g., `https://karan-s-ipod.vercel.app`)
 
 ### Step 6: Test Frontend
+
 1. Visit your Vercel URL
 2. Navigate to Music → Songs
 3. Click a song to play
@@ -106,12 +115,14 @@ Click **"Environment Variables"** and add:
 ## 🔧 Environment Variables Summary
 
 ### Render (Backend)
+
 ```
 PORT=10000
 CORS_ORIGINS=*
 ```
 
 ### Vercel (Frontend)
+
 ```
 VITE_BACKEND_URL=https://your-backend.onrender.com
 ```
@@ -121,6 +132,7 @@ VITE_BACKEND_URL=https://your-backend.onrender.com
 ## ✅ Verification Tests
 
 ### Backend Tests
+
 ```bash
 # Test library endpoint
 curl https://your-backend.onrender.com/api/library/songs
@@ -133,6 +145,7 @@ curl https://your-backend.onrender.com/top_songs.json
 ```
 
 ### Frontend Tests
+
 1. Open browser console (F12)
 2. Check for any CORS errors
 3. Verify network requests to backend are successful
@@ -145,23 +158,29 @@ curl https://your-backend.onrender.com/top_songs.json
 ### Backend Issues
 
 **Problem**: Backend returns 500 error
+
 - **Solution**: Check Render logs in dashboard
 
 **Problem**: CORS errors
+
 - **Solution**: Ensure `CORS_ORIGINS=*` is set in Render
 
 **Problem**: Songs not playing
+
 - **Solution**: Check if `/api/stream/<video_id>` endpoint is working
 
 ### Frontend Issues
 
 **Problem**: Blank page
+
 - **Solution**: Check browser console for errors
 
 **Problem**: Can't connect to backend
+
 - **Solution**: Verify `VITE_BACKEND_URL` is set correctly in Vercel
 
 **Problem**: Build fails
+
 - **Solution**: Check Vercel build logs for errors
 
 ---
@@ -209,11 +228,11 @@ git push origin main
 
 ## 💰 Cost Summary
 
-| Service | Plan | Cost |
-|---------|------|------|
-| Render | Free | $0/month |
-| Vercel | Free | $0/month |
-| **Total** | | **$0/month** |
+| Service   | Plan | Cost         |
+| --------- | ---- | ------------ |
+| Render    | Free | $0/month     |
+| Vercel    | Free | $0/month     |
+| **Total** |      | **$0/month** |
 
 ---
 
@@ -240,6 +259,7 @@ git push origin main
 ## 📞 Support
 
 If you encounter issues:
+
 1. Check Render logs: Dashboard → Logs
 2. Check Vercel logs: Dashboard → Deployments → View Build Logs
 3. Check browser console for frontend errors
