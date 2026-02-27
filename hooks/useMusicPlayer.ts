@@ -328,8 +328,15 @@ export const useMusicPlayer = () => {
     }
   }, [state.isPlaying, state.currentTrack]);
 
-  const seekTo = useCallback((timeSec: number) => {
+  const seekTo = useCallback((timeOrFraction: number) => {
     if (ytPlayerRef.current) {
+      // If value is between 0 and 1, treat as fraction of duration
+      // (NowPlayingScreen scrubber passes fractions)
+      const dur = ytPlayerRef.current.getDuration?.() || 0;
+      const timeSec =
+        timeOrFraction >= 0 && timeOrFraction <= 1 && dur > 0
+          ? timeOrFraction * dur
+          : timeOrFraction;
       ytPlayerRef.current.seekTo(timeSec, true);
       setState((prev) => ({
         ...prev,
@@ -340,10 +347,11 @@ export const useMusicPlayer = () => {
   }, []);
 
   const setVolume = useCallback((vol: number) => {
+    const clamped = Math.max(0, Math.min(1, vol));
     if (ytPlayerRef.current) {
-      ytPlayerRef.current.setVolume(vol * 100);
+      ytPlayerRef.current.setVolume(clamped * 100);
     }
-    setState((prev) => ({ ...prev, volume: vol }));
+    setState((prev) => ({ ...prev, volume: clamped }));
   }, []);
 
   const nextTrack = useCallback(() => {
