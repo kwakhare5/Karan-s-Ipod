@@ -2,10 +2,20 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Track } from '../src/types';
 import { searchSongs } from '../src/utils/musicApi';
 
+// YouTube IFrame API types
+interface YTPlayerEvent {
+  target: { setVolume: (v: number) => void };
+  data: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type YTPlayerInstance = any;
+
 // Extend Window interface for YouTube IFrame API
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     YT: any;
   }
 }
@@ -27,7 +37,7 @@ export interface MusicPlayerState {
 
 export const useMusicPlayer = () => {
   // We no longer use an HTMLAudioElement. We use the YouTube IFrame API.
-  const ytPlayerRef = useRef<any>(null);
+  const ytPlayerRef = useRef<YTPlayerInstance>(null);
   const playerReadyRef = useRef<boolean>(false);
   const playQueueRef = useRef<{ queue: Track[]; index: number } | null>(null);
 
@@ -45,6 +55,162 @@ export const useMusicPlayer = () => {
     isShuffled: false,
     repeatMode: 'off',
   });
+
+  // Helper: fetch related songs from backend
+  const fetchRelated = async (artist: string): Promise<Track[]> => {
+    try {
+      const results = await searchSongs(artist);
+      return results.map(
+        (item: {
+          id: string;
+          title: string;
+          artist: string;
+          duration: number;
+          thumbnail: string;
+        }) => ({
+          videoId: item.id,
+          title: item.title,
+          artist: item.artist,
+          duration: item.duration,
+          thumbnailUrl: item.thumbnail,
+          album: 'Unknown',
+        })
+      );
+    } catch {
+      return [];
+    }
+  };
+
+  // Helper: play a track by index from a queue
+  const playFromQueue = useCallback(
+    async (queue: Track[], idx: number) => {
+      const track = queue[idx];
+
+      setState((prev) => ({
+        ...prev,
+        currentTrack: track,
+        queueIndex: idx,
+        queue,
+        isPlaying: true, // Optimistic
+        isLoading: true,
+        error: null,
+        progress: 0,
+        currentTime: 0,
+        duration: track.duration || 0,
+      }));
+
+      if (!playerReadyRef.current || !ytPlayerRef.current) {
+        // Queue it up for when the API script finishes loading
+        playQueueRef.current = { queue, index: idx };
+        return;
+      }
+
+      try {
+        ytPlayerRef.current.loadVideoById(track.videoId);
+      } catch (err) {
+        console.error('[YT API Error]:', err);
+        setState((prev) => ({ ...prev, isLoading: false, error: 'Failed to start video' }));
+      }
+
+      // Auto-fetch related queue natively if no more queue exists
+      if (idx === queue.length - 1 && queue.length < 50) {
+        fetchRelated(track.artist).then((related) => {
+          if (related.length > 0) {
+            const uniqueNew = related.filter(
+              (t) => !queue.some((ext) => ext.videoId === t.videoId)
+            );
+            if (uniqueNew.length > 0) {
+              setState((prev) => ({
+                ...prev,
+                queue: [...prev.queue, ...uniqueNew],
+              }));
+            }
+          }
+        });
+      }
+    },
+    [] // playFromQueue is stable; it reads state via setState callbacks
+  );
+
+  const handleTrackEnd = useCallback(() => {
+    setState((prev) => {
+      if (prev.repeatMode === 'one') {
+        if (ytPlayerRef.current) {
+          ytPlayerRef.current.seekTo(0);
+          ytPlayerRef.current.playVideo();
+        }
+        return prev;
+      }
+
+      const newIndex = prev.queueIndex + 1;
+      if (newIndex < prev.queue.length) {
+        setTimeout(() => playFromQueue(prev.queue, newIndex), 0);
+        return prev;
+      } else if (prev.repeatMode === 'all' && prev.queue.length > 0) {
+        setTimeout(() => playFromQueue(prev.queue, 0), 0);
+        return prev;
+      }
+
+      // Stop playing
+      return { ...prev, isPlaying: false, progress: 0, currentTime: 0 };
+    });
+  }, [playFromQueue]);
+
+  const onPlayerReady = useCallback(
+    (event: YTPlayerEvent) => {
+      playerReadyRef.current = true;
+      event.target.setVolume(state.volume * 100);
+
+      // If a play request was queued before the player was ready, execute it now
+      if (playQueueRef.current) {
+        playFromQueue(playQueueRef.current.queue, playQueueRef.current.index);
+        playQueueRef.current = null;
+      }
+    },
+    [state.volume, playFromQueue]
+  );
+
+  const onPlayerStateChange = useCallback(
+    (event: YTPlayerEvent) => {
+      const YT_STATE = window.YT.PlayerState;
+
+      switch (event.data) {
+        case YT_STATE.PLAYING:
+          setState((prev) => ({
+            ...prev,
+            isPlaying: true,
+            isLoading: false,
+            error: null,
+            duration: ytPlayerRef.current?.getDuration?.() || prev.duration,
+          }));
+          break;
+        case YT_STATE.PAUSED:
+          setState((prev) => ({ ...prev, isPlaying: false }));
+          break;
+        case YT_STATE.ENDED:
+          handleTrackEnd();
+          break;
+        case YT_STATE.BUFFERING:
+          setState((prev) => ({ ...prev, isLoading: true }));
+          break;
+        case YT_STATE.UNSTARTED:
+        case YT_STATE.CUED:
+          // Do nothing specific, wait for playing/buffering
+          break;
+      }
+    },
+    [handleTrackEnd]
+  );
+
+  const onPlayerError = useCallback((event: YTPlayerEvent) => {
+    console.error('[YouTube Player Error]', event.data);
+    setState((prev) => ({
+      ...prev,
+      isPlaying: false,
+      isLoading: false,
+      error: 'Playback failed. The video might be restricted or blocked.',
+    }));
+  }, []);
 
   // Inject the YouTube IFrame API Script once
   useEffect(() => {
@@ -84,61 +250,12 @@ export const useMusicPlayer = () => {
       // API already loaded but player not created (e.g., hot reload)
       window.onYouTubeIframeAPIReady();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const onPlayerReady = (event: any) => {
-    playerReadyRef.current = true;
-    event.target.setVolume(state.volume * 100);
-
-    // If a play request was queued before the player was ready, execute it now
-    if (playQueueRef.current) {
-      playFromQueue(playQueueRef.current.queue, playQueueRef.current.index);
-      playQueueRef.current = null;
-    }
-  };
-
-  const onPlayerStateChange = (event: any) => {
-    const YT_STATE = window.YT.PlayerState;
-
-    switch (event.data) {
-      case YT_STATE.PLAYING:
-        setState((prev) => ({
-          ...prev,
-          isPlaying: true,
-          isLoading: false,
-          error: null,
-          duration: ytPlayerRef.current.getDuration() || prev.duration,
-        }));
-        break;
-      case YT_STATE.PAUSED:
-        setState((prev) => ({ ...prev, isPlaying: false }));
-        break;
-      case YT_STATE.ENDED:
-        handleTrackEnd();
-        break;
-      case YT_STATE.BUFFERING:
-        setState((prev) => ({ ...prev, isLoading: true }));
-        break;
-      case YT_STATE.UNSTARTED:
-      case YT_STATE.CUED:
-        // Do nothing specific, wait for playing/buffering
-        break;
-    }
-  };
-
-  const onPlayerError = (event: any) => {
-    console.error('[YouTube Player Error]', event.data);
-    setState((prev) => ({
-      ...prev,
-      isPlaying: false,
-      isLoading: false,
-      error: 'Playback failed. The video might be restricted or blocked.',
-    }));
-  };
 
   // Setup loop to sync time
   useEffect(() => {
-    let interval: any;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (state.isPlaying) {
       interval = setInterval(() => {
         if (ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
@@ -152,147 +269,54 @@ export const useMusicPlayer = () => {
         }
       }, 500); // 500ms sync is smooth enough
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [state.isPlaying]);
-
-  const handleTrackEnd = () => {
-    setState((prev) => {
-      if (prev.repeatMode === 'one') {
-        if (ytPlayerRef.current) {
-          ytPlayerRef.current.seekTo(0);
-          ytPlayerRef.current.playVideo();
-        }
-        return prev;
-      }
-
-      const newIndex = prev.queueIndex + 1;
-      if (newIndex < prev.queue.length) {
-        // We must call playFromQueue OUTSIDE the setState callback
-        // using a timeout to avoid react warnings, or just let useEffect handle it.
-        // For simplicity, we trigger it asynchronously.
-        setTimeout(() => playFromQueue(prev.queue, newIndex), 0);
-        return prev; // playFromQueue handles the state update
-      } else if (prev.repeatMode === 'all' && prev.queue.length > 0) {
-        setTimeout(() => playFromQueue(prev.queue, 0), 0);
-        return prev;
-      }
-
-      // Stop playing
-      return { ...prev, isPlaying: false, progress: 0, currentTime: 0 };
-    });
-  };
-
-  // Helper: fetch related songs from backend
-  const fetchRelated = async (artist: string): Promise<Track[]> => {
-    try {
-      const results = await searchSongs(artist);
-      return results.map(
-        (item: {
-          id: string;
-          title: string;
-          artist: string;
-          duration: number;
-          thumbnail: string;
-        }) => ({
-          videoId: item.id,
-          title: item.title,
-          artist: item.artist,
-          duration: item.duration,
-          thumbnailUrl: item.thumbnail,
-          album: 'Unknown',
-        })
-      );
-    } catch {
-      return [];
-    }
-  };
-
-  // Helper: play a track by index from a queue
-  const playFromQueue = async (queue: Track[], idx: number) => {
-    const track = queue[idx];
-
-    setState((prev) => ({
-      ...prev,
-      currentTrack: track,
-      queueIndex: idx,
-      queue,
-      isPlaying: true, // Optimistic
-      isLoading: true,
-      error: null,
-      progress: 0,
-      currentTime: 0,
-      duration: track.duration || 0,
-    }));
-
-    if (!playerReadyRef.current || !ytPlayerRef.current) {
-      // Queue it up for when the API script finishes loading
-      playQueueRef.current = { queue, index: idx };
-      return;
-    }
-
-    try {
-      ytPlayerRef.current.loadVideoById(track.videoId);
-    } catch (err) {
-      console.error('[YT API Error]:', err);
-      setState((prev) => ({ ...prev, isLoading: false, error: 'Failed to start video' }));
-    }
-
-    // Auto-fetch related queue natively if no more queue exists
-    if (!state.isShuffled && idx === queue.length - 1 && queue.length < 50) {
-      fetchRelated(track.artist).then((related) => {
-        if (related.length > 0) {
-          const uniqueNew = related.filter((t) => !queue.some((ext) => ext.videoId === t.videoId));
-          if (uniqueNew.length > 0) {
-            setState((prev) => ({
-              ...prev,
-              queue: [...prev.queue, ...uniqueNew],
-            }));
-          }
-        }
-      });
-    }
-  };
 
   // PUBLIC API
 
-  const playSong = useCallback((track: Track, newQueue?: Track[]) => {
-    let q = newQueue || [track];
-    // If we're currently shuffled and given a new queue, shuffle the new queue.
-    if (newQueue) {
-      setState((prev) => {
-        if (prev.isShuffled) {
-          const others = [...newQueue].filter((t) => t.videoId !== track.videoId);
-          // basic shuffle
-          for (let i = others.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [others[i], others[j]] = [others[j], others[i]];
+  const playSong = useCallback(
+    (track: Track, newQueue?: Track[]) => {
+      let q = newQueue || [track];
+      // If we're currently shuffled and given a new queue, shuffle the new queue.
+      if (newQueue) {
+        setState((prev) => {
+          if (prev.isShuffled) {
+            const others = [...newQueue].filter((t) => t.videoId !== track.videoId);
+            // basic shuffle
+            for (let i = others.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [others[i], others[j]] = [others[j], others[i]];
+            }
+            q = [track, ...others];
           }
-          q = [track, ...others];
-        }
-        return prev;
-      });
-    } else {
-      // If no new queue is provided, see if track is in the existing queue
-      setState((prev) => {
-        const foundIndex = prev.queue.findIndex((t) => t.videoId === track.videoId);
-        if (foundIndex !== -1) {
-          q = prev.queue; // use existing queue
-        } else {
-          // not in queue, treat as single item queue
-          q = [track];
-        }
-        return prev; // We're not fully updating state here, `playFromQueue` handles that.
-      });
-    }
+          return prev;
+        });
+      } else {
+        // If no new queue is provided, see if track is in the existing queue
+        setState((prev) => {
+          const foundIndex = prev.queue.findIndex((t) => t.videoId === track.videoId);
+          if (foundIndex !== -1) {
+            q = prev.queue; // use existing queue
+          } else {
+            // not in queue, treat as single item queue
+            q = [track];
+          }
+          return prev; // We're not fully updating state here, `playFromQueue` handles that.
+        });
+      }
 
-    // Call outside of setState to avoid capturing old closure variables
-    setTimeout(() => {
-      // Re-find the index in case q changed
-      let idx = q.findIndex((t) => t.videoId === track.videoId);
-      if (idx === -1) idx = 0;
-      playFromQueue(q, idx);
-    }, 0);
-  }, []);
+      // Call outside of setState to avoid capturing old closure variables
+      setTimeout(() => {
+        // Re-find the index in case q changed
+        let idx = q.findIndex((t) => t.videoId === track.videoId);
+        if (idx === -1) idx = 0;
+        playFromQueue(q, idx);
+      }, 0);
+    },
+    [playFromQueue]
+  );
 
   const togglePlayPause = useCallback(() => {
     if (!state.currentTrack || !ytPlayerRef.current) return;
@@ -334,7 +358,7 @@ export const useMusicPlayer = () => {
       }
     }
     playFromQueue(state.queue, newIndex);
-  }, [state.queue, state.queueIndex, state.repeatMode]);
+  }, [state.queue, state.queueIndex, state.repeatMode, playFromQueue]);
 
   const prevTrack = useCallback(() => {
     if (!state.currentTrack) return;
@@ -350,7 +374,7 @@ export const useMusicPlayer = () => {
       newIndex = state.queue.length - 1; // wrap around
     }
     playFromQueue(state.queue, newIndex);
-  }, [state.queue, state.queueIndex, state.currentTrack, state.currentTime, seekTo]);
+  }, [state.queue, state.queueIndex, state.currentTrack, state.currentTime, seekTo, playFromQueue]);
 
   const toggleShuffle = useCallback(() => {
     setState((prev) => {

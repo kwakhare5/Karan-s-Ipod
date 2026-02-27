@@ -17,29 +17,26 @@ export const useNavigation = () => {
     savedIndicesRef.current = savedIndices;
   }, [savedIndices]);
 
-  const navigateTo = useCallback(
-    (targetMenuId: string) => {
-      setNavState((prev) => {
-        // Save current index for the menu we are leaving
-        setSavedIndices((saved) => ({ ...saved, [prev.currentMenuId]: prev.selectedIndex }));
+  const navigateTo = useCallback((targetMenuId: string) => {
+    setNavState((prev) => {
+      // Save current index for the menu we are leaving
+      setSavedIndices((saved) => ({ ...saved, [prev.currentMenuId]: prev.selectedIndex }));
 
-        // Restore saved index for target or default to 0
-        // Use ref to get latest savedIndices
-        const restoreIndex = savedIndicesRef.current[targetMenuId] ?? 0;
+      // Restore saved index for target or default to 0
+      // Use ref to get latest savedIndices
+      const restoreIndex = savedIndicesRef.current[targetMenuId] ?? 0;
 
-        return {
-          ...prev,
-          menuStack: [
-            ...prev.menuStack,
-            { menuId: prev.currentMenuId, selectedIndex: prev.selectedIndex },
-          ],
-          currentMenuId: targetMenuId,
-          selectedIndex: restoreIndex,
-        };
-      });
-    },
-    []
-  );
+      return {
+        ...prev,
+        menuStack: [
+          ...prev.menuStack,
+          { menuId: prev.currentMenuId, selectedIndex: prev.selectedIndex },
+        ],
+        currentMenuId: targetMenuId,
+        selectedIndex: restoreIndex,
+      };
+    });
+  }, []);
 
   const goBack = useCallback(() => {
     setNavState((prev) => {

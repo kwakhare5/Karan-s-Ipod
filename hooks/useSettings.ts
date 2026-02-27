@@ -28,7 +28,13 @@ const getWeatherCondition = (code: number): string => {
 };
 
 export const useSettings = () => {
-  const [chassisColor, setChassisColor] = useState('silver');
+  const [chassisColor, setChassisColor] = useState(() => {
+    try {
+      return localStorage.getItem('chassis_color') || 'silver';
+    } catch {
+      return 'silver';
+    }
+  });
   const [clockSettings, setClockSettings] = useState<ClockSettings>({
     is24Hour: false,
     showSeconds: false,
@@ -74,10 +80,6 @@ export const useSettings = () => {
   };
 
   useEffect(() => {
-    // Load chassis color
-    const savedColor = localStorage.getItem('chassis_color');
-    if (savedColor) setChassisColor(savedColor);
-
     // Weather Fetching
     const fetchWeather = async () => {
       if (!clockSettings.showWeather) return;

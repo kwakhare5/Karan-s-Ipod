@@ -265,7 +265,7 @@ const App = () => {
    * Play a song or navigate to Now Playing if it's already playing
    */
   const playOrNavigate = useCallback(
-    (track: Track, queue: Track[], _index?: number) => {
+    (track: Track, queue: Track[]) => {
       // If clicking the same song that's already playing, just go to Now Playing screen
       if (music.currentTrack && music.currentTrack.videoId === track.videoId) {
         navigateTo(MenuIDs.NOW_PLAYING);
@@ -282,8 +282,7 @@ const App = () => {
 
   const handleSearchSelect = useCallback(
     (track: Track, results: Track[]) => {
-      const index = results.findIndex((t) => t.videoId === track.videoId);
-      playOrNavigate(track, results, index >= 0 ? index : 0);
+      playOrNavigate(track, results);
       setGlobalSearchResults([]); // Clear results on navigate
     },
     [playOrNavigate]
@@ -436,8 +435,7 @@ const App = () => {
               thumbnailUrl: f.thumbnailUrl,
               album: f.albumId,
             }));
-            const index = favorites.findIndex((f) => f.id === fav.id);
-            playOrNavigate(track, favQueue, index);
+            playOrNavigate(track, favQueue);
           },
         })
       );
@@ -470,12 +468,12 @@ const App = () => {
 
       if (artistSongs.length === 0)
         return [{ id: 'no_songs', label: 'No songs found', type: 'toggle' }];
-      return artistSongs.map((song, idx) => ({
+      return artistSongs.map((song) => ({
         id: song.videoId,
         label: `${song.title} - ${song.artist}`,
         type: 'action',
         action: () => {
-          playOrNavigate(song, artistSongs, idx);
+          playOrNavigate(song, artistSongs);
         },
       }));
     }
@@ -507,12 +505,12 @@ const App = () => {
         .sort((a, b) => a.title.localeCompare(b.title));
       if (albumSongs.length === 0)
         return [{ id: 'no_songs', label: 'No songs found', type: 'toggle' }];
-      return albumSongs.map((song, idx) => ({
+      return albumSongs.map((song) => ({
         id: song.videoId,
         label: `${song.title} - ${song.artist}`,
         type: 'action',
         action: () => {
-          playOrNavigate(song, albumSongs, idx);
+          playOrNavigate(song, albumSongs);
         },
       }));
     }
@@ -571,12 +569,12 @@ const App = () => {
           },
         },
         ...playlistSongs.map(
-          (track, index): MenuItem => ({
+          (track): MenuItem => ({
             id: track.videoId,
             label: track.title,
             type: 'action' as const,
             action: () => {
-              playOrNavigate(track, playlistSongs, index);
+              playOrNavigate(track, playlistSongs);
             },
           })
         ),
@@ -645,24 +643,24 @@ const App = () => {
       if (genreSongs.length === 0)
         return [{ id: 'no_songs', label: 'No songs found', type: 'toggle' as MenuItemType }];
       return genreSongs.map(
-        (song, idx): MenuItem => ({
+        (song): MenuItem => ({
           id: song.videoId,
           label: song.title,
           type: 'action' as MenuItemType,
           action: () => {
-            playOrNavigate(song, genreSongs, idx);
+            playOrNavigate(song, genreSongs);
           },
         })
       );
     }
 
     if (menuId === MenuIDs.SONGS) {
-      return sortedSongs.map((song, idx) => ({
+      return sortedSongs.map((song) => ({
         id: song.videoId,
         label: `${song.title} - ${song.artist}`,
         type: 'action',
         action: () => {
-          playOrNavigate(song, sortedSongs, idx);
+          playOrNavigate(song, sortedSongs);
         },
       }));
     }
