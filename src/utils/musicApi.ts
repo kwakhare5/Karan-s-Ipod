@@ -11,7 +11,7 @@ export interface Song {
   duration: number;
 }
 
-// ───── Search Songs ─────
+// ───── Search Songs (YTMusic - best quality) ─────
 export async function searchSongs(query: string): Promise<Song[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(query)}`);
@@ -41,8 +41,23 @@ export async function searchSongs(query: string): Promise<Song[]> {
   }
 }
 
-// ───── Get Audio URL (Backend Proxy) ─────
+// ───── Get Audio URL (Hybrid: JioSaavn CDN → Backend Proxy) ─────
 export async function getAudioUrl(videoId: string): Promise<string | null> {
+  try {
+    // First, ask the backend for a direct CDN URL (JioSaavn)
+    const res = await fetch(`${API_BASE_URL}/api/stream-info/${videoId}`);
+    const data = await res.json();
+
+    if (data.url && !data.needs_proxy) {
+      // Direct CDN URL (JioSaavn) — browser can play this directly!
+      console.log(`[Audio] Using ${data.source} CDN`);
+      return data.url;
+    }
+  } catch (err) {
+    console.warn('[Audio] stream-info failed, using proxy:', err);
+  }
+
+  // Fallback: use the backend proxy endpoint
   return `${API_BASE_URL}/api/stream/${videoId}`;
 }
 
@@ -51,7 +66,7 @@ export async function getPipedFallbackUrl(videoId: string): Promise<string | nul
   return `${API_BASE_URL}/api/piped-stream/${videoId}`;
 }
 
-// Export a placeholder for any legacy imports
+// Legacy export
 export async function fetchPipedAudioUrl(videoId: string): Promise<string | null> {
   return getPipedFallbackUrl(videoId);
 }
